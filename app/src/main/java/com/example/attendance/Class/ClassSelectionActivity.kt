@@ -2,39 +2,38 @@ package com.example.attendance
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.ListView
 import androidx.appcompat.app.AppCompatActivity
 
+object ClassRepository {
+    var classes: List<String> = emptyList()
+}
+
 class ClassSelectionActivity : AppCompatActivity() {
-    private lateinit var databaseHelper: DatabaseHelper
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_class_selection)
 
-        databaseHelper = DatabaseHelper(this)
         val classListView = findViewById<ListView>(R.id.class_list_view)
 
-        val db = databaseHelper.readableDatabase
-        val cursor = db.rawQuery("SELECT * FROM classes", null)
-        val classes = mutableListOf<String>()
-
-        if (cursor.moveToFirst()) {
-            do {
-                classes.add(cursor.getString(cursor.getColumnIndexOrThrow("name")))
-            } while (cursor.moveToNext())
+        // Initialize the list of classes from the repository if it's not already initialized
+        if (ClassRepository.classes.isEmpty()) {
+            ClassRepository.classes = listOf("Informatique", "Indus", "Electrique")
         }
-        cursor.close()
+
+        // Retrieve the list of classes from the repository
+        val classes = ClassRepository.classes
 
         val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, classes)
         classListView.adapter = adapter
 
-        classListView.setOnItemClickListener { _, _, position, _ ->
+        classListView.onItemClickListener = AdapterView.OnItemClickListener { _, _, position, _ ->
             val selectedClass = classes[position]
-            val intent = Intent(this, ClassDetailActivity::class.java).apply {
-                putExtra("class_name", selectedClass)
-            }
+            val intent = Intent(this, ClassDetailActivity::class.java)
+            intent.putExtra("class_name", selectedClass)
             startActivity(intent)
         }
     }

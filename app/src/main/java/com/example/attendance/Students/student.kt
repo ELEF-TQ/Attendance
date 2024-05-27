@@ -4,5 +4,6 @@ data class Student(
     val id: Int,
     val name: String,
     val className: String,
-    val absences: Int
+    var absences: Int,
+    var isAbsent: Boolean = false
 )

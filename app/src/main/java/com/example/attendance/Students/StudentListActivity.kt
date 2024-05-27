@@ -1,11 +1,10 @@
 package com.example.attendance
 
+import android.annotation.SuppressLint
 import android.app.AlertDialog
+import android.content.ContentValues
 import android.os.Bundle
-import android.widget.ArrayAdapter
-import android.widget.Button
-import android.widget.EditText
-import android.widget.ListView
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 
 class StudentListActivity : AppCompatActivity() {
@@ -48,26 +47,100 @@ class StudentListActivity : AppCompatActivity() {
         val builder = AlertDialog.Builder(this)
         val inflater = layoutInflater
         val dialogLayout = inflater.inflate(R.layout.dialog_add_student, null)
+
         val nameEditText = dialogLayout.findViewById<EditText>(R.id.name_edit_text)
-        val classEditText = dialogLayout.findViewById<EditText>(R.id.class_edit_text)
+        val classSpinner = dialogLayout.findViewById<Spinner>(R.id.class_spinner)
+
+        // Retrieve the list of classes from the database
+        val availableClasses = getAvailableClassesFromDatabase()
+
+        // Set up the Spinner with the list of classes
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, availableClasses)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        classSpinner.adapter = adapter
 
         with(builder) {
-            setTitle("Ajouter un étudiant")
+            setTitle("Add Student")
             setView(dialogLayout)
-            setPositiveButton("Ajouter") { dialog, _ ->
+            setPositiveButton("Add") { dialog, _ ->
                 val name = nameEditText.text.toString()
-                val className = classEditText.text.toString()
-                val newStudent = Student(0, name, className, 0)
-                studentDatabaseHelper.addStudent(newStudent)
-                displayStudents()
+                val selectedClass = classSpinner.selectedItem.toString()
+
+                // Add the student to the database
+                addStudentToDatabase(name, selectedClass)
+
+                // Refresh the student list for the selected class
+                displayStudentsForClass(selectedClass)
+
                 dialog.dismiss()
             }
-            setNegativeButton("Annuler") { dialog, _ ->
+            setNegativeButton("Cancel") { dialog, _ ->
                 dialog.dismiss()
             }
             show()
         }
     }
+
+
+    @SuppressLint("Range")
+    private fun getAvailableClassesFromDatabase(): List<String> {
+        val dbHelper = DatabaseHelper(this)
+        val classes = ArrayList<String>()
+        val db = dbHelper.readableDatabase
+        val cursor = db.rawQuery("SELECT name FROM classes", null)
+        cursor.use {
+            while (it.moveToNext()) {
+                classes.add(it.getString(it.getColumnIndex("name")))
+            }
+        }
+        db.close()
+        return classes
+    }
+    private fun addStudentToDatabase(name: String, className: String) {
+        val dbHelper = DatabaseHelper(this)
+        val db = dbHelper.writableDatabase
+        val values = ContentValues().apply {
+            put("name", name)
+            put("class_id", getClassIdFromClass(className))
+        }
+        db.insert("students", null, values)
+        db.close()
+    }
+
+    @SuppressLint("Range")
+    private fun getClassIdFromClass(className: String): Int {
+        val dbHelper = DatabaseHelper(this)
+        val db = dbHelper.readableDatabase
+        val cursor = db.rawQuery("SELECT id FROM classes WHERE name=?", arrayOf(className))
+        var classId = -1
+        cursor.use {
+            if (it.moveToNext()) {
+                classId = it.getInt(it.getColumnIndex("id"))
+            }
+        }
+        db.close()
+        return classId
+    }
+
+
+    @SuppressLint("Range")
+    private fun displayStudentsForClass(className: String) {
+        val dbHelper = DatabaseHelper(this)
+        val db = dbHelper.readableDatabase
+        val students = ArrayList<String>()
+        val cursor = db.rawQuery(
+            "SELECT name FROM students WHERE class_id=(SELECT id FROM classes WHERE name=?)",
+            arrayOf(className)
+        )
+        cursor.use {
+            while (it.moveToNext()) {
+                students.add(it.getString(it.getColumnIndex("name")))
+            }
+        }
+        db.close()
+        // Display the students in your UI as needed
+    }
+
 
     private fun showRemoveStudentDialog() {
         val builder = AlertDialog.Builder(this)
